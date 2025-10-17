@@ -1,41 +1,65 @@
-from fastapi import FastAPI, HTTPException, status, Response
-from .schemas import User
+from fastapi import FastAPI, Depends, HTTPException, status 
+from sqlalchemy.orm import Session 
+from sqlalchemy import select 
+from sqlalchemy.exc import IntegrityError 
+ 
+from .database import engine, SessionLocal 
+from .models import Base, UserDB 
+from .schemas import UserCreate, UserRead 
 
 app = FastAPI()
-users: list[User] = []  
+Base.metadata.create_all(bind=engine)
 
-@app.get("/api/users")
+@app.get("/health")
 def get_users():
-    return users
+    return {"status": "ok"} 
+ 
+def get_db(): 
+    db = SessionLocal() 
+    try: 
+        yield db 
+    finally: 
+        db.close() 
 
-@app.get("/api/users/{user_id}") # get user by id
-def get_user(user_id: int):
-    for u in users: # search through list
-        if u.user_id == user_id: # Check id matches
-            return u # Return the found user
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+@app.get("/api/users", response_model=list[UserRead]) 
+def list_users(db: Session = Depends(get_db)): 
+    stmt = select(UserDB).order_by(UserDB.id) 
+    return list(db.execute(stmt).scalars()) 
+ 
+@app.get("/api/users/{user_id}", response_model=UserRead) 
+def get_user(user_id: int, db: Session = Depends(get_db)): 
+    user = db.get(UserDB, user_id) 
+    if not user: 
+        raise HTTPException(status_code=404, detail="User not found") 
+    return user 
+ 
+@app.post("/api/users", response_model=UserRead, status_code=status.HTTP_201_CREATED) 
+def add_user(payload: UserCreate, db: Session = Depends(get_db)): 
+    user = UserDB(**payload.model_dump()) 
+    db.add(user) 
+    try: 
+        db.commit() 
+        db.refresh(user) 
+    except IntegrityError: 
+        db.rollback() 
+        raise HTTPException(status_code=409, detail="User already exists") 
+    return user 
 
-@app.post("/api/users", status_code=status.HTTP_201_CREATED) # Create a new user (201)
-def add_user(user: User): # Body validated as User
-    if any(u.user_id == user.user_id for u in users): # Enforce unique user_id
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,detail="user_id already exists") # Conflict on duplicate
-    users.append(user) # Append to in-memory list
-    return user
 
-@app.put("/api/users/{user_id}") # Update existing user
-def update_user(user_id: int, updated: User): 
-    for i, u in enumerate(users): 
-        if u.user_id == user_id: 
-            users[i] = updated # Replace the stored object
-            return users[i] # Return updated user
-    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
+# @app.put("/api/users/{user_id}") # Update existing user
+# def update_user(user_id: int, updated: User): 
+#     for i, u in enumerate(users): 
+#         if u.user_id == user_id: 
+#             users[i] = updated # Replace the stored object
+#             return users[i] # Return updated user
+#     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
 
-@app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_user(user_id: int):
-    for i, u in enumerate(users):
-        if u.user_id == user_id:
-            users.pop(i)
- # 204 No Content should return an empty body
-            return Response(status_code=status.HTTP_204_NO_CONTENT)
-    # If we didn’t find the user, return 404
-    raise HTTPException(status_code=404, detail="User not found")
+# @app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+# def delete_user(user_id: int):
+#     for i, u in enumerate(users):
+#         if u.user_id == user_id:
+#             users.pop(i)
+#  # 204 No Content should return an empty body
+#             return Response(status_code=status.HTTP_204_NO_CONTENT)
+#     # If we didn’t find the user, return 404
+#     raise HTTPException(status_code=404, detail="User not found")

@@ -1,8 +1,20 @@
-from pydantic import BaseModel, EmailStr, constr, conint
-
-class User(BaseModel):
-    user_id: int
-    name: constr(min_length=2, max_length=25)
-    email: EmailStr # must follow correct email patterns 
-    age: conint(gt=18) # age must be > 18
-    student_id: constr(pattern=r'^G00\d{6}') # Student ID must start with "G00" followed by 6 digits 
+from typing import Annotated 
+from pydantic import BaseModel, EmailStr, Field, StringConstraints, ConfigDict 
+ 
+NameStr = Annotated[str, StringConstraints(min_length=2, max_length=50)] 
+StudentId = Annotated[str, StringConstraints(pattern=r"^G00\d{6}")] 
+ 
+class UserCreate(BaseModel): 
+    name: NameStr 
+    email: EmailStr 
+    age: int = Field(gt=18) 
+    student_id: StudentId 
+ 
+class UserRead(BaseModel): 
+    id: int 
+    name: NameStr 
+    email: EmailStr 
+    age: int 
+    student_id: StudentId 
+ 
+    model_config = ConfigDict(from_attributes=True)
