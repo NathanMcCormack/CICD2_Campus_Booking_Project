@@ -1,25 +1,36 @@
-from fastapi import FastAPI, Depends, HTTPException, status 
+from fastapi import FastAPI, Depends, HTTPException, status, Response 
 from sqlalchemy.orm import Session 
 from sqlalchemy import select 
 from sqlalchemy.exc import IntegrityError 
  
 from .database import engine, SessionLocal 
 from .models import Base, UserDB 
-from .schemas import UserCreate, UserRead 
+from .schemas import UserCreate, UserRead, UserUpdate
 
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
-@app.get("/health")
-def get_users():
-    return {"status": "ok"} 
- 
+def commit_or_rollback(db: Session, error_msg: str):
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=error_msg)
+
 def get_db(): 
     db = SessionLocal() 
     try: 
         yield db 
     finally: 
         db.close() 
+
+@app.get("/health")
+def get_users():
+    return {"status": "ok"} 
+
+#------------- Users Endpoints ------------------
+
+# GET: All Users, User by ID
 
 @app.get("/api/users", response_model=list[UserRead]) 
 def list_users(db: Session = Depends(get_db)): 
@@ -33,6 +44,7 @@ def get_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found") 
     return user 
  
+ #POST new user
 @app.post("/api/users", response_model=UserRead, status_code=status.HTTP_201_CREATED) 
 def add_user(payload: UserCreate, db: Session = Depends(get_db)): 
     user = UserDB(**payload.model_dump()) 
@@ -45,3 +57,49 @@ def add_user(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="User already exists") 
     return user 
 
+#PATCH user information - updates only what attributes have been changed 
+@app.patch("/api/users/{user_id}", response_model=UserRead)
+def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)):
+    user = db.get(UserDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    updates = payload.model_dump(exclude_unset=True, exclude_none=True) #exclude unset only changes the fields that have been updated 
+    for field, value in updates.items():
+        setattr(user, field, value)
+
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="User update failed (unique constraint)")
+    return user
+
+#PUT user information - updates all user attributes
+@app.put("/api/users/{user_id}", response_model=UserRead)
+def update_user(user_id: int, payload: UserCreate, db: Session = Depends(get_db)):
+    user = db.get(UserDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for field_name, field_value in payload.model_dump().items():
+        setattr(user, field_name, field_value)
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        # email, phone unique conflict, etc.
+        raise HTTPException(status_code=409, detail="User already exists")
+    return user
+
+# DELETE a user by ID (triggers ORM cascade -> deletes their projects too)
+@app.delete("/api/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db)) -> Response:
+    user = db.get(UserDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(user)  # <-- triggers cascade="all, delete-orphan" on projects
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
