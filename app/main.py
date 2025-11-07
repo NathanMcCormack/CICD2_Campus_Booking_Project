@@ -45,21 +45,3 @@ def add_user(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="User already exists") 
     return user 
 
-
-# @app.put("/api/users/{user_id}") # Update existing user
-# def update_user(user_id: int, updated: User): 
-#     for i, u in enumerate(users): 
-#         if u.user_id == user_id: 
-#             users[i] = updated # Replace the stored object
-#             return users[i] # Return updated user
-#     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail="User not found")
-
-# @app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-# def delete_user(user_id: int):
-#     for i, u in enumerate(users):
-#         if u.user_id == user_id:
-#             users.pop(i)
-#  # 204 No Content should return an empty body
-#             return Response(status_code=status.HTTP_204_NO_CONTENT)
-#     # If we didn’t find the user, return 404
-#     raise HTTPException(status_code=404, detail="User not found")
