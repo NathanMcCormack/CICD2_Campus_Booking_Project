@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Optional
 from annotated_types import Ge, Le
 from pydantic import BaseModel, EmailStr, Field, StringConstraints, ConfigDict 
  
@@ -25,3 +25,9 @@ class UserRead(BaseModel):
     student_id: StudentId 
  
     model_config = ConfigDict(from_attributes=True)
+
+class UserUpdate(BaseModel): #Optional is for PATCH endpoints
+    name: Optional[str] = None
+    email: Optional[str] = None
+    age: Optional[int] = None
+    student_id: Optional[str] = None
