@@ -10,16 +10,23 @@ from .schemas import UserCreate, UserRead
 app = FastAPI()
 Base.metadata.create_all(bind=engine)
 
-@app.get("/health")
-def get_users():
-    return {"status": "ok"} 
- 
+def commit_or_rollback(db: Session, error_msg: str):
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=error_msg)
+
 def get_db(): 
     db = SessionLocal() 
     try: 
         yield db 
     finally: 
         db.close() 
+
+@app.get("/health")
+def get_users():
+    return {"status": "ok"} 
 
 @app.get("/api/users", response_model=list[UserRead]) 
 def list_users(db: Session = Depends(get_db)): 
