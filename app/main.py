@@ -92,3 +92,14 @@ def update_user(user_id: int, payload: UserCreate, db: Session = Depends(get_db)
         # email, phone unique conflict, etc.
         raise HTTPException(status_code=409, detail="User already exists")
     return user
+
+# DELETE a user by ID (triggers ORM cascade -> deletes their projects too)
+@app.delete("/api/users/{user_id}", status_code=204)
+def delete_user(user_id: int, db: Session = Depends(get_db)) -> Response:
+    user = db.get(UserDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    db.delete(user)  # <-- triggers cascade="all, delete-orphan" on projects
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
