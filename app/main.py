@@ -57,7 +57,7 @@ def add_user(payload: UserCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=409, detail="User already exists") 
     return user 
 
-#PATCH user information
+#PATCH user information - updates only what attributes have been changed 
 @app.patch("/api/users/{user_id}", response_model=UserRead)
 def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)):
     user = db.get(UserDB, user_id)
@@ -74,4 +74,21 @@ def update_user(user_id: int, payload: UserUpdate, db: Session = Depends(get_db)
     except IntegrityError:
         db.rollback()
         raise HTTPException(status_code=409, detail="User update failed (unique constraint)")
+    return user
+
+#PUT user information - updates all user attributes
+@app.put("/api/users/{user_id}", response_model=UserRead)
+def update_user(user_id: int, payload: UserCreate, db: Session = Depends(get_db)):
+    user = db.get(UserDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    for field_name, field_value in payload.model_dump().items():
+        setattr(user, field_name, field_value)
+    try:
+        db.commit()
+        db.refresh(user)
+    except IntegrityError:
+        db.rollback()
+        # email, phone unique conflict, etc.
+        raise HTTPException(status_code=409, detail="User already exists")
     return user
