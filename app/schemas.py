@@ -5,7 +5,8 @@ from pydantic import BaseModel, EmailStr, Field, StringConstraints, ConfigDict
 NameStr = Annotated[str, StringConstraints(min_length=2, max_length=50)] 
 StudentId = Annotated[str, StringConstraints(pattern=r"^G00\d{6}")] 
 AgeInt = Annotated[int, Ge(16), Le(100)]
-PhoneStr = Annotated[str, StringConstraints(pattern=r"^\d{13}")]
+# PhoneStr = Annotated[str, StringConstraints(pattern=r"^\d{13}")] # all digits, 13 digits long 
+PhoneStr = Annotated[str, StringConstraints(pattern=r'^\+353\s0\d{2}\s\d{3}\s\d{4}$')]
  
 class UserCreate(BaseModel): 
     first_name: NameStr 
@@ -27,7 +28,9 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 class UserUpdate(BaseModel): #Optional is for PATCH endpoints
-    name: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
     email: Optional[str] = None
+    phone: Optional[str] = None
     age: Optional[int] = None
     student_id: Optional[str] = None
