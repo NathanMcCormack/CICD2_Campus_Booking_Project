@@ -50,35 +50,41 @@ def test_patch_user_success(client):
     assert body["age"] == 21                   # unchanged
     assert body["student_id"] == "G00123486"    # unchanged
 
-# def test_put_user_full_update_success(client):
-#     create = client.post(
-#         "/api/users",
-#         json={"name": "Dan", "email": "d@ex.com", "age": 22, "student_id": "S4444444"},
-#     )
-#     assert create.status_code == 201, create.text
-#     u = create.json()
+def test_put_user_full_update_success(client):
+    create = client.post(
+        "/api/users",
+        json={"first_name":"Darragh","last_name":"McCormack","email":"Darragh1@atu.ie", "phone":"+353 083 155 5555","age":21,"student_id":"G00123451"}
+    )
+    assert create.status_code == 201, create.text
+    u = create.json()
 
-#     payload = {
-#         "name": "Mike",
-#         "email": "mike@gmail.com",
-#         "age": 25,
-#         "student_id": "S5555555",
-#     }
-#     r = client.put(f"/api/users/{u['id']}", json=payload)
-#     assert r.status_code == 200, r.text
-#     body = r.json()
-#     assert body["name"] == "Mike"
-#     assert body["email"] == "mike@gmail.com"
-#     assert body["age"] == 25
-#     assert body["student_id"] == "S5555555"
+    payload = {
+        "first_name": "Mike",
+        "last_name": "Dull",
+        "email": "mike@gmail.com",
+        "phone": "+353 091 555 5555",
+        "age": 25,
+        "student_id": "G00414785",
+    }
+    r = client.put(f"/api/users/{u['id']}", json=payload)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["first_name"] == "Mike"
+    assert body["last_name"] == "Dull"    # unchanged
+    assert body["email"] == "mike@gmail.com"     # unchanged
+    assert body["phone"] == "+353 091 555 5555" # unchanged
+    assert body["age"] == 25                    # unchanged
+    assert body["student_id"] == "G00414785"    # unchanged
 
-# def test_put_user_not_found(client):
-#     payload = {
-#         "name": "Ghost",
-#         "email": "ghost@ex.com",
-#         "age": 21,
-#         "student_id": "S7777777",
-#     }
-#     r = client.put("/api/users/424242", json=payload)
-#     assert r.status_code == 404
-#     assert r.json()["detail"] == "User not found"
+def test_put_user_not_found(client):
+    payload = {
+        "first_name": "Ghost",
+        "last_name": "Cas[er]",
+        "email": "no@gmail.com",
+        "phone": "+353 055 555 5555",
+        "age": 25,
+        "student_id": "G00414555",
+    }
+    r = client.put("/api/users/424242", json=payload)
+    assert r.status_code == 404
+    assert r.json()["detail"] == "User not found"
