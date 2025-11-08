@@ -2,12 +2,13 @@ import pytest
 from fastapi.testclient import TestClient 
 from sqlalchemy import create_engine 
 from sqlalchemy.orm import sessionmaker 
+from sqlalchemy.pool import StaticPool
  
 from app.main import app, get_db 
 from app.models import Base 
  
-TEST_DB_URL = "sqlite:///./app.db" 
-engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False}) 
+TEST_DB_URL = "sqlite+pysqlite:///:memory:" 
+engine = create_engine(TEST_DB_URL, connect_args={"check_same_thread": False}, poolclass=StaticPool) 
 TestingSessionLocal = sessionmaker(bind=engine, expire_on_commit=False) 
 Base.metadata.create_all(bind=engine) 
  
@@ -25,49 +26,65 @@ def client():
         yield c 
         # --- teardown happens when the 'with' block exits --- 
  
+ #-------------- User Tests -----------------
 def test_create_user(client): 
-    r = client.post("/api/users", json={"name":"Darragh","email":"Darragh@atu.ie","age":21,"student_id":"G00123456"}) 
+    r = client.post("/api/users", json={"first_name":"Darragh","last_name":"McCormack","email":"Darragh@atu.ie", "phone":"+353 083 555 5555","age":21,"student_id":"G00123456"}) 
     assert r.status_code == 201 
 
+def test_patch_user_success(client):
+    create = client.post(
+        "/api/users",
+        json={"first_name": "Alice","last_name": "McCormack", "email": "alice@ex.com","phone":"+353 083 559 5555", "age": 21, "student_id": "G00123486"},
+    )
+    assert create.status_code == 201, create.text
+    u = create.json()  # <-- parse JSON body
 
-# import pytest 
+    r = client.patch(f"/api/users/{u['id']}", json={"first_name": "AliceUpdated"})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["id"] == u["id"]
+    assert body["first_name"] == "AliceUpdated"
+    assert body["last_name"] == "McCormack"    # unchanged
+    assert body["email"] == "alice@ex.com"     # unchanged
+    assert body["phone"] == "+353 083 559 5555" # unchanged
+    assert body["age"] == 21                   # unchanged
+    assert body["student_id"] == "G00123486"    # unchanged
 
-# def user_payload(uid=1, name="Nathan", email="G00414780@atu.ie", age=21, sid="G00414780"): 
-#     return {"user_id": uid, "name": name, "email": email, "age": age, "student_id": sid} 
- 
-# def test_create_user_ok(client): 
-#     r = client.post("/api/users", json=user_payload()) 
-#     assert r.status_code == 201 
-#     data = r.json() 
-#     assert data["user_id"] == 1 
-#     assert data["name"] == "Nathan" 
- 
-# def test_duplicate_user_id_conflict(client): 
-#     client.post("/api/users", json=user_payload(uid=2)) 
-#     r = client.post("/api/users", json=user_payload(uid=2)) 
-#     assert r.status_code == 409  # duplicate id -> conflict 
-#     assert "exists" in r.json()["detail"].lower() 
- 
-# @pytest.mark.parametrize("bad_sid", ["BAD123", "s1234567", "S123", "S12345678"]) 
-# def test_bad_student_id_422(client, bad_sid): 
-#     r = client.post("/api/users", json=user_payload(uid=3, sid=bad_sid)) 
-#     assert r.status_code == 422  # pydantic validation error 
+def test_put_user_full_update_success(client):
+    create = client.post(
+        "/api/users",
+        json={"first_name":"Darragh","last_name":"McCormack","email":"Darragh1@atu.ie", "phone":"+353 083 155 5555","age":21,"student_id":"G00123451"}
+    )
+    assert create.status_code == 201, create.text
+    u = create.json()
 
- 
-# def test_get_user_404(client): 
-#     r = client.get("/api/users/999") 
-#     assert r.status_code == 404 
- 
-# def test_delete_then_404(client): 
-#     client.post("/api/users", json=user_payload(uid=10)) 
-#     r1 = client.delete("/api/users/10") 
-#     assert r1.status_code == 204 
-#     r2 = client.delete("/api/users/10") 
-#     assert r2.status_code == 404 
+    payload = {
+        "first_name": "Mike",
+        "last_name": "Dull",
+        "email": "mike@gmail.com",
+        "phone": "+353 091 555 5555",
+        "age": 25,
+        "student_id": "G00414785",
+    }
+    r = client.put(f"/api/users/{u['id']}", json=payload)
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["first_name"] == "Mike"
+    assert body["last_name"] == "Dull"    # unchanged
+    assert body["email"] == "mike@gmail.com"     # unchanged
+    assert body["phone"] == "+353 091 555 5555" # unchanged
+    assert body["age"] == 25                    # unchanged
+    assert body["student_id"] == "G00414785"    # unchanged
 
-# def test_put_then_404(client): 
-#     client.post("/api/users", json=user_payload(uid=10)) #posting user with id 10 
-#     r1 = client.put("/api/users/10", json=user_payload(name = "Nathan")) 
-#     assert r1.status_code == 200 
-#     r2 = client.put("/api/users/11", json=user_payload(uid = 11, name = "EOIN")) #Must format as a put, can't just have user id (like delete)
-#     assert r2.status_code == 404 
+def test_put_user_not_found(client):
+    payload = {
+        "first_name": "Ghost",
+        "last_name": "Cas[er]",
+        "email": "no@gmail.com",
+        "phone": "+353 055 555 5555",
+        "age": 25,
+        "student_id": "G00414555",
+    }
+    r = client.put("/api/users/424242", json=payload)
+    assert r.status_code == 404
+    assert r.json()["detail"] == "User not found"
