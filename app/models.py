@@ -22,6 +22,7 @@ class UserAdressDB(Base):
     address_line1: Mapped[str] = mapped_column(String, nullable=False)
     address_line2: Mapped[str] = mapped_column(String, nullable=True)
     apartment_block_number: Mapped[str] = mapped_column(String, nullable=True)
+    county: Mapped[str] = mapped_column(String, nullable=False)
     post_code: Mapped[str] = mapped_column(String, nullable=False)
     resident_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     resident: Mapped[UserDB] =  relationship(back_populates="address")
