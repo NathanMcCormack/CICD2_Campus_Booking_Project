@@ -109,6 +109,7 @@ def List_All_Memberships(db: Session = Depends(get_db)):
     stmt = select(MembershipDB).order_by(MembershipDB.id) 
     return list(db.execute(stmt).scalars()) 
 
+#POST new membership
 @app.post("/api/memberships",response_model=MembershipReadWithClub,status_code=status.HTTP_201_CREATED)
 def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):
     # Ensure the club exists
@@ -134,7 +135,31 @@ def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):
     membership = db.scalar(select(MembershipDB).options(selectinload(MembershipDB.club)).where(MembershipDB.id == membership.id))
     return membership
 
- 
+#PATC Membership info 
+@app.patch("/api/memberships/{membership_id}", response_model=MembershipReadWithClub)
+def update_membership(membership_id: int,payload: MembershipUpdate,db: Session = Depends(get_db)):
+
+    membership = db.get(MembershipDB, membership_id)
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membership not found")
+
+    update_data = payload.model_dump(exclude_unset=True)
+
+    # If club_id is changed, ensure the new club exists
+    if "club_id" in update_data:
+        new_club = db.get(ClubDB, update_data["club_id"])
+        if not new_club:
+            raise HTTPException(status_code=404, detail="Club not found")
+
+    for field, value in update_data.items():
+        setattr(membership, field, value)
+
+    commit_or_rollback(db, "Could not update membership")
+
+    membership = db.scalar(select(MembershipDB).options(selectinload(MembershipDB.club)).where(MembershipDB.id == membership_id))
+    return membership
+
+ #DELETE Membership
 @app.delete("/api/memberships/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_membership(membership_id: int, db: Session = Depends(get_db)) -> Response:
     membership = db.get(MembershipDB, membership_id)
