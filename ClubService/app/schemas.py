@@ -7,6 +7,8 @@ CategoryStr = Annotated[str,StringConstraints(pattern=r"^(club|society)$", to_lo
 DescriptionStr = Annotated[str, StringConstraints(min_length=10, max_length=255)]
 MembershipCostInt =  Annotated[int, Ge(0), Le(150)]
 
+#----------- Club Schemas --------------
+
 class ClubCreate(BaseModel):
     name: ClubNameStr
     description: DescriptionStr
@@ -25,4 +27,23 @@ class ClubUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    membership_cost: Optional[str] = None
+    membership_cost: Optional[int] = None
+
+#---------- Membership Schemas ----------
+
+class MembershipCreate(BaseModel):
+    user_id: int
+    club_id: int
+
+class MembershipRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    user_id: int
+    club_id: int
+
+class MembershipUpdate(BaseModel):
+    user_id: Optional[int] = None
+    club_id: Optional[int] = None
+
+class MembershipReadWithClub(MembershipRead):
+    club: Optional[ClubRead] = None   
