@@ -103,15 +103,44 @@ def Delete_Club(club_id: int, db: Session = Depends(get_db)) -> Response:
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-# GET: All Memberships, Membserhips by ID
+# GET: All Memberships
 @app.get("/api/memberships", response_model=list[MembershipRead]) 
 def List_All_Memberships(db: Session = Depends(get_db)): 
     stmt = select(MembershipDB).order_by(MembershipDB.id) 
     return list(db.execute(stmt).scalars()) 
+
+@app.post("/api/memberships",response_model=MembershipReadWithClub,status_code=status.HTTP_201_CREATED)
+def create_membership(payload: MembershipCreate, db: Session = Depends(get_db)):
+    # Ensure the club exists
+    club = db.get(ClubDB, payload.club_id)
+    if not club:
+        raise HTTPException(status_code=404, detail="Club not found")
+
+    # Optional: prevent duplicate memberships for same user & club
+    existing_stmt = select(MembershipDB).where(
+        MembershipDB.user_id == payload.user_id,
+        MembershipDB.club_id == payload.club_id,
+    )
+    existing = db.scalar(existing_stmt)
+    if existing:
+        raise HTTPException(status_code=409, detail="User is already a member of this club")
+
+    membership = MembershipDB(**payload.model_dump())
+    db.add(membership)
+    commit_or_rollback(db, "Could not create membership")
+
+    # Reload with club relationship
+    db.refresh(membership)
+    membership = db.scalar(select(MembershipDB).options(selectinload(MembershipDB.club)).where(MembershipDB.id == membership.id))
+    return membership
+
  
-@app.get("/api/memberships/{membership_id}", response_model=MembershipRead) 
-def Get_Membership_By_ID(membership_id: int, db: Session = Depends(get_db)): 
-    membership = db.get(MembershipDB, membership_id) 
-    if not membership: 
-        raise HTTPException(status_code=404, detail="Membership not found") 
-    return membership 
+@app.delete("/api/memberships/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_membership(membership_id: int, db: Session = Depends(get_db)) -> Response:
+    membership = db.get(MembershipDB, membership_id)
+    if not membership:
+        raise HTTPException(status_code=404, detail="Membership not found")
+
+    db.delete(membership)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
