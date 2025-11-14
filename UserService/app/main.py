@@ -29,6 +29,7 @@ def get_db():
         yield db 
     finally: 
         db.close() 
+        
 
 #------------- Health Check ---------------------
 @app.get("/health")
@@ -150,8 +151,8 @@ def Add_New_Address(address: AddressCreate, db: Session = Depends(get_db)):
     return addr
 
 @app.patch("/api/addresses/{address_id}", response_model=AddressRead)
-def update_project(project_id: int, payload: AddressUpdate, db: Session = Depends(get_db)):
-    address = db.get(AddressDB, project_id)
+def update_address(address_id: int, payload: AddressUpdate, db: Session = Depends(get_db)):
+    address = db.get(AddressDB, address_id)
     if not address:
         raise HTTPException(status_code=404, detail="Address not found")
 
@@ -168,8 +169,8 @@ def update_project(project_id: int, payload: AddressUpdate, db: Session = Depend
     return address
 
 @app.put("/api/addresses/{address_id}", response_model=AddressRead)
-def update_project(project_id: int, payload: AddressCreate, db: Session = Depends(get_db)):
-    address = db.get(AddressDB, project_id)
+def update_address(address_id: int, payload: AddressCreate, db: Session = Depends(get_db)):
+    address = db.get(AddressDB, address_id)
     if not address:
         raise HTTPException(status_code=404, detail="Address not found")
     for field_name, field_value in payload.model_dump().items():
