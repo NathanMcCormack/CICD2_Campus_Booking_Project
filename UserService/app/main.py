@@ -33,7 +33,7 @@ def get_db():
 #------------- Health Check ---------------------
 @app.get("/health")
 def Health_Check():
-    return {"status": "ok"} 
+    return {"status": "ok",  "service": "users"} 
 
 #------------- Users Endpoints ------------------
 

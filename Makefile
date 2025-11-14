@@ -1,5 +1,5 @@
 # Minimal Makefile with start/stop 
-APP = app.main:app 
+APP = ClubService.app.main:app 
 PID_FILE = .uvicorn.pid 
 install: 
 	pip install -r requirements.txt 
