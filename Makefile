@@ -1,4 +1,4 @@
-APP = UserService.app.main:app 
+APP = PaymentService.app.main:app 
 PID_FILE = .uvicorn.pid 
 
 install: 
