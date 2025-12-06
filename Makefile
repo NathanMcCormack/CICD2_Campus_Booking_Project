@@ -1,11 +1,19 @@
-APP = PaymentService.app.main:app 
+PaymentServiceAPP = PaymentService.app.main:app 
+ClubServiceAPP = ClubService.app.main:app 
+UserServiceAPP = UserService.app.main:app 
 PID_FILE = .uvicorn.pid 
 
 install: 
 	pip install -r requirements.txt 
 
-run: 
-	python -m uvicorn $(APP) --host 0.0.0.0 --port 8000 --reload 
+runPayment: 
+	python -m uvicorn $(PaymentServiceAPP) --host 0.0.0.0 --port 8000 --reload 
+
+runClubs: 
+	python -m uvicorn $(ClubServiceAPP) --host 0.0.0.0 --port 8001 --reload 
+
+runUsers: 
+	python -m uvicorn $(UserServiceAPP) --host 0.0.0.0 --port 8002 --reload 
 
 test: 
 	cd UserService && python -m pytest -q
